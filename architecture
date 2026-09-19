@@ -1,0 +1,5 @@
+school_engine/
+│
+├── app.py              <-- Main UI, dynamic tab engine & session manager
+├── course_builder.py   <-- Gemini AI logic (generates full 30-day curriculum)
+└── user_data.json      <-- Database storing active courses, tests & grades
