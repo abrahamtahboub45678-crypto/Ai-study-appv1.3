@@ -10,27 +10,134 @@ import plotly.express as px
 import google.generativeai as genai
 
 # -------------------------------------------------------------------
-# APP CONFIGURATION & BRANDING
+# APP CONFIGURATION & EXPANDED STYLING
 # -------------------------------------------------------------------
 st.set_page_config(
-    page_title="Smart Auto-Scheduler Engine", 
+    page_title="Smart Auto-Scheduler Enterprise", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-st.markdown("""
-    <style>
-    .main { padding-top: 1rem; }
-    .stMetric { background-color: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; }
-    </style>
-""", unsafe_allow_html=True)
+# Dynamic CSS Theme Engine
+def apply_custom_theme(theme_mode, accent_color):
+    bg_color = "#0e1117" if theme_mode == "Dark / OLED" else "#ffffff"
+    text_color = "#ffffff" if theme_mode == "Dark / OLED" else "#111111"
+    card_bg = "rgba(255, 255, 255, 0.05)" if theme_mode == "Dark / OLED" else "rgba(0, 0, 0, 0.03)"
+    
+    st.markdown(f"""
+        <style>
+        .main {{ background-color: {bg_color}; color: {text_color}; }}
+        .stMetric {{ background-color: {card_bg}; padding: 12px; border-radius: 10px; border: 1px solid {accent_color}33; }}
+        .stButton>button {{ border-radius: 8px; border: 1px solid {accent_color}; }}
+        </style>
+    """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
-# HELPER UTILITIES
+# COMPREHENSIVE COURSE DATABASE GENERATOR (1,000 COURSES)
 # -------------------------------------------------------------------
+@st.cache_data
+def load_expanded_course_database():
+    """Generates and caches an expansive database of 1,000 academic courses across all fields."""
+    categories = {
+        "Computer Science & AI": ["Data Structures", "Algorithms", "Machine Learning", "Operating Systems", "Cybersecurity", "Web Development", "Computer Vision", "NLP", "Cloud Computing", "Database Systems"],
+        "Mathematics & Statistics": ["Calculus AB", "Calculus BC", "Multivariable Calculus", "Linear Algebra", "Differential Equations", "Probability Theory", "Mathematical Statistics", "Abstract Algebra", "Discrete Math", "Real Analysis"],
+        "Physics & Engineering": ["Physics 1", "Physics C Mechanics", "Thermodynamics", "Quantum Mechanics", "Organic Chemistry", "General Chemistry", "Statics", "Circuit Analysis", "Fluid Mechanics", "Materials Science"],
+        "Biology & Medicine": ["General Biology", "Cell Biology", "Genetics", "Human Anatomy", "Physiology", "Microbiology", "Immunology", "Neuroscience", "Biochemistry", "Pharmacology"],
+        "Economics & Business": ["Microeconomics", "Macroeconomics", "Financial Accounting", "Corporate Finance", "Econometrics", "Marketing Management", "Business Strategy", "Operations Management", "Investments", "Organizational Behavior"],
+        "Humanities & Social Sciences": ["US History", "World History", "Psychology", "Sociology", "Political Science", "Philosophy Ethics", "Macro Sociology", "Cognitive Psychology", "Micro Anthropology", "International Relations"],
+        "Languages & Arts": ["Spanish I", "AP Spanish", "French I", "AP French", "German I", "Studio Art", "Music Theory", "Digital Photography", "Graphic Design", "Creative Writing"]
+    }
+    
+    levels = ["Middle School", "High School", "AP", "College"]
+    database = {}
+    
+    count = 1
+    for cat, topics in categories.items():
+        for topic in topics:
+            for lvl in levels:
+                for var in ["I", "II", "Advanced", "Honors"]:
+                    course_id = f"CRS-{count:04d}"
+                    course_name = f"{lvl} {topic} {var}"
+                    diff = 5 if lvl == "College" or "AP" in lvl else (4 if "Advanced" in var or "Honors" in var else 3)
+                    hours = diff * 1.5 + 1.0
+                    
+                    database[course_name] = {
+                        "id": course_id,
+                        "category": cat,
+                        "level": lvl,
+                        "difficulty": int(diff),
+                        "hours": float(hours),
+                        "reasoning": f"Standardized {lvl} level curriculum covering foundational and advanced concepts in {topic} ({var})."
+                    }
+                    count += 1
+                    if count > 1000:
+                        break
+                if count > 1000:
+                    break
+            if count > 1000:
+                break
+        if count > 1000:
+            break
+            
+    return database
+
+EXPANDED_COURSES = load_expanded_course_database()
+
+# -------------------------------------------------------------------
+# DATA PERSISTENCE ENGINE
+# -------------------------------------------------------------------
+DATA_FILE = "user_data.json"
+
+def load_user_data():
+    default_structure = {
+        "user_schedule": [],
+        "projects": [],
+        "distractions": [],
+        "deliverables": {},
+        "streaks": {"last_active": str(datetime.date.today()), "count": 1},
+        "xp": 0,
+        "settings": {"theme": "Dark / OLED", "accent": "#00FFAA", "pomo_work": 25, "pomo_break": 5}
+    }
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                data = json.load(f)
+                for key, val in default_structure.items():
+                    if key not in data:
+                        data[key] = val
+                return data
+        except Exception:
+            return default_structure
+    return default_structure
+
+def save_user_data():
+    data = {
+        "user_schedule": st.session_state.get("user_schedule", []),
+        "projects": st.session_state.get("projects", []),
+        "distractions": st.session_state.get("distractions", []),
+        "deliverables": st.session_state.get("deliverables", {}),
+        "streaks": st.session_state.get("streaks", {"last_active": str(datetime.date.today()), "count": 1}),
+        "xp": st.session_state.get("xp", 0),
+        "settings": st.session_state.get("settings", {})
+    }
+    try:
+        with open(DATA_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except IOError as e:
+        st.error(f"Error saving data: {e}")
+
+# Initialize Session State
+saved_data = load_user_data()
+for key in ["user_schedule", "projects", "distractions", "deliverables", "streaks", "xp", "settings"]:
+    if key not in st.session_state:
+        st.session_state[key] = saved_data[key]
+
+# Apply Theme Settings
+apply_custom_theme(st.session_state.settings.get("theme", "Dark / OLED"), st.session_state.settings.get("accent", "#00FFAA"))
+
+# Helper Function
 def format_hours_and_mins(total_minutes):
-    """Converts total minutes into a formatted human-readable string."""
     total_minutes = max(0, int(round(total_minutes)))
     hrs = total_minutes // 60
     mins = total_minutes % 60
@@ -40,403 +147,288 @@ def format_hours_and_mins(total_minutes):
         return f"{hrs} hrs"
     return f"{hrs} hrs {mins} mins"
 
-def sanitize_string(text):
-    """Sanitizes user text inputs for rendering safe Markdown."""
-    return re.sub(r'[^\w\s\-\.\,\(\)\:\/\!\?]', '', str(text))
-
 # -------------------------------------------------------------------
-# LOCAL PERSISTENCE ENGINE (STRUCTURAL FIXES)
+# SIDEBAR CONTROLS & CUSTOMIZATION
 # -------------------------------------------------------------------
-DATA_FILE = "user_data.json"
+st.sidebar.title("⚡ System Control")
+st.sidebar.markdown(f"🔥 **Streak:** `{st.session_state.streaks['count']} Days` | ⭐ **XP:** `{st.session_state.xp}`")
 
-def load_user_data():
-    """Loads user configuration safely with fallback defaults."""
-    default_structure = {
-        "user_schedule": [],
-        "projects": [],
-        "distractions": [],
-        "deliverables": {},
-        "streaks": {"last_active": str(datetime.date.today()), "count": 1},
-        "xp": 0
-    }
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r") as f:
-                data = json.load(f)
-                # Ensure all default keys exist
-                for key, val in default_structure.items():
-                    if key not in data:
-                        data[key] = val
-                return data
-        except Exception:
-            st.warning("⚠️ Local data file corrupted. Re-initializing safe default profile.")
-            return default_structure
-    return default_structure
+# Theme & Customization Preferences
+with st.sidebar.expander("🎨 Appearance & Themes"):
+    theme_choice = st.selectbox("Visual Theme", ["Dark / OLED", "Light Mode"], index=0 if st.session_state.settings.get("theme") == "Dark / OLED" else 1)
+    accent_choice = st.color_picker("Accent Color", value=st.session_state.settings.get("accent", "#00FFAA"))
+    if theme_choice != st.session_state.settings.get("theme") or accent_choice != st.session_state.settings.get("accent"):
+        st.session_state.settings["theme"] = theme_choice
+        st.session_state.settings["accent"] = accent_choice
+        save_user_data()
+        st.rerun()
 
-def save_user_data():
-    """Persists current session state to disk safely."""
-    data = {
-        "user_schedule": st.session_state.get("user_schedule", []),
-        "projects": st.session_state.get("projects", []),
-        "distractions": st.session_state.get("distractions", []),
-        "deliverables": st.session_state.get("deliverables", {}),
-        "streaks": st.session_state.get("streaks", {"last_active": str(datetime.date.today()), "count": 1}),
-        "xp": st.session_state.get("xp", 0)
-    }
-    try:
-        with open(DATA_FILE, "w") as f:
-            json.dump(data, f, indent=2)
-    except IOError as e:
-        st.error(f"Failed to save state to local storage: {e}")
-
-# Initialize Session States
-saved_data = load_user_data()
-for key in ["user_schedule", "projects", "distractions", "deliverables", "streaks", "xp"]:
-    if key not in st.session_state:
-        st.session_state[key] = saved_data[key]
-
-# Update Gamified Streaks
-today_str = str(datetime.date.today())
-last_active = st.session_state.streaks.get("last_active", today_str)
-if last_active != today_str:
-    last_date = datetime.datetime.strptime(last_active, "%Y-%m-%d").date()
-    if (datetime.date.today() - last_date).days == 1:
-        st.session_state.streaks["count"] += 1
-    elif (datetime.date.today() - last_date).days > 1:
-        st.session_state.streaks["count"] = 1
-    st.session_state.streaks["last_active"] = today_str
-    save_user_data()
-
-# -------------------------------------------------------------------
-# COURSE DATABASE LOADER
-# -------------------------------------------------------------------
-@st.cache_data
-def load_preset_courses():
-    """Loads courses.json safely with robust fallback defaults."""
-    if os.path.exists("courses.json"):
-        try:
-            with open("courses.json", "r") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    # Default fallback library if file missing
-    return {
-        "AP Calculus BC": {"level": "AP", "difficulty": 5, "hours": 8, "reasoning": "Advanced calculus, series, and vectors."},
-        "AP Physics 1": {"level": "AP", "difficulty": 5, "hours": 7, "reasoning": "Algebra-based mechanics and dynamics."},
-        "High School Chemistry": {"level": "High School", "difficulty": 3, "hours": 4, "reasoning": "Stoichiometry and atomic bonding."},
-        "College Computer Science A": {"level": "College", "difficulty": 4, "hours": 6, "reasoning": "Data structures and OOP concepts."}
-    }
-
-PRESET_COURSES = load_preset_courses()
-
-# -------------------------------------------------------------------
-# SIDEBAR CONTROLS & GAMIFICATION METRICS
-# -------------------------------------------------------------------
-st.sidebar.title("⚡ Control Center")
-st.sidebar.markdown(f"🔥 **Daily Streak:** `{st.session_state.streaks['count']} Days` | ⭐ **XP:** `{st.session_state.xp}`")
+# Timer Controls Settings
+with st.sidebar.expander("⏱️ Pomodoro Settings"):
+    p_work = st.number_input("Work Sprint (mins)", min_value=5, max_value=120, value=st.session_state.settings.get("pomo_work", 25))
+    p_break = st.number_input("Break Length (mins)", min_value=1, max_value=30, value=st.session_state.settings.get("pomo_break", 5))
+    if p_work != st.session_state.settings.get("pomo_work") or p_break != st.session_state.settings.get("pomo_break"):
+        st.session_state.settings["pomo_work"] = p_work
+        st.session_state.settings["pomo_break"] = p_break
+        save_user_data()
 
 # API Key Handling
-api_key = st.sidebar.text_input("Gemini API Key (Optional)", type="password", help="Required for custom AI syllabus parsing.")
+api_key = st.sidebar.text_input("Gemini API Key", type="password", help="Required for custom AI syllabus analysis.")
 if api_key:
     genai.configure(api_key=api_key)
 
 st.sidebar.divider()
-
-# Reset Option
-if st.sidebar.button("🗑️ Reset All Data", help="Clears local storage and starts fresh."):
+if st.sidebar.button("🗑️ Reset All User Data"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
     st.session_state.clear()
     st.rerun()
 
 # -------------------------------------------------------------------
-# MAIN APP NAVIGATION
+# MAIN NAVIGATION & TABS
 # -------------------------------------------------------------------
-st.title("⚡ Smart Auto-Scheduler")
-st.caption("AI-Powered Time Allocation, Project Execution Engine, Focus Timers, and Health Protection.")
+st.title("⚡ Smart Auto-Scheduler Enterprise")
+st.caption(f"Accessing database of **{len(EXPANDED_COURSES):,}** courses across STEM, Humanities, Business & Health.")
 
 tabs = st.tabs([
-    "📚 Class Load & Setup", 
-    "📅 Today's Study Allocation", 
+    "📚 Course Selection (1,000 Database)", 
+    "📅 Daily Allocator & Deliverables", 
     "🚀 Project Engine", 
     "⏱️ Active Focus Sprint", 
-    "📊 Timeline & Health Guardrails"
+    "📊 Timeline & Guardrails"
 ])
 
 # -------------------------------------------------------------------
-# TAB 1: COURSE LOAD SETUP
+# TAB 1: EXPANDED COURSE SELECTION
 # -------------------------------------------------------------------
 with tabs[0]:
-    st.header("Academic Course Configuration")
+    st.header("Academic Roster Configuration")
     
-    level_filter = st.multiselect(
-        "Filter Preset Library by Level:",
-        options=["Middle School", "High School", "AP", "College"],
-        default=["Middle School", "High School", "AP", "College"]
-    )
-    if not level_filter:
-        level_filter = ["Middle School", "High School", "AP", "College"]
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        cat_filter = st.multiselect("Filter Discipline:", options=list(set(c["category"] for c in EXPANDED_COURSES.values())), default=[])
+    with col_f2:
+        lvl_filter = st.multiselect("Filter Academic Level:", options=["Middle School", "High School", "AP", "College"], default=[])
 
-    filtered_presets = {
-        name: data for name, data in PRESET_COURSES.items() 
-        if data.get("level") in level_filter
-    }
+    # Filter Course Options
+    available_courses = EXPANDED_COURSES
+    if cat_filter:
+        available_courses = {k: v for k, v in available_courses.items() if v["category"] in cat_filter}
+    if lvl_filter:
+        available_courses = {k: v for k, v in available_courses.items() if v["level"] in lvl_filter}
 
-    # Selected Courses
-    existing_preset_names = [c["course"] for c in st.session_state.user_schedule if c.get("course") in filtered_presets]
-    selected_presets = st.multiselect(
-        "Select Active Courses:",
-        options=list(filtered_presets.keys()),
-        default=existing_preset_names
+    # Selected Courses Search Bar
+    existing_selected = [c["course"] for c in st.session_state.user_schedule if c["course"] in available_courses]
+    selected_course_names = st.multiselect(
+        f"Search & Select Courses ({len(available_courses)} Available):",
+        options=sorted(list(available_courses.keys())),
+        default=existing_selected
     )
 
     # Sync Selection Changes
-    new_schedule = []
-    for course_name in selected_presets:
-        data = PRESET_COURSES[course_name]
-        new_schedule.append({
-            "course": course_name,
-            "level": data["level"],
-            "difficulty": max(1, min(5, data["difficulty"])),
-            "hours": data["hours"],
-            "reasoning": data["reasoning"]
+    updated_schedule = []
+    for c_name in selected_course_names:
+        c_data = EXPANDED_COURSES[c_name]
+        updated_schedule.append({
+            "course": c_name,
+            "level": c_data["level"],
+            "difficulty": c_data["difficulty"],
+            "hours": c_data["hours"],
+            "reasoning": c_data["reasoning"]
         })
-    
-    # Preserve Custom Courses
+
+    # Preserve Custom AI Classes
     for c in st.session_state.user_schedule:
         if c.get("level") == "Custom":
-            new_schedule.append(c)
+            updated_schedule.append(c)
 
-    if new_schedule != st.session_state.user_schedule:
-        st.session_state.user_schedule = new_schedule
+    if updated_schedule != st.session_state.user_schedule:
+        st.session_state.user_schedule = updated_schedule
         save_user_data()
 
-    # Add Custom Course via AI
-    with st.expander("➕ Add Custom Class / AI Syllabus Analysis"):
-        custom_name = st.text_input("Custom Course Name", max_chars=50)
-        custom_syllabus = st.text_area("Paste Syllabus or Description", max_chars=2000)
-        
-        if st.button("🤖 Analyze & Add Course"):
+    # Custom Course Addition via AI
+    with st.expander("➕ Add Custom Class via Gemini AI Syllabus Parser"):
+        custom_name = st.text_input("Course Title", max_chars=60)
+        custom_syllabus = st.text_area("Paste Syllabus Text", max_chars=2000)
+        if st.button("Analyze & Add Custom Course"):
             if not api_key:
-                st.error("Gemini API key required in the sidebar for custom analysis!")
+                st.error("API Key required in sidebar.")
             elif custom_name and custom_syllabus:
                 with st.spinner("AI analyzing course difficulty..."):
                     try:
                         model = genai.GenerativeModel('gemini-1.5-flash')
-                        prompt = f"""
-                        Analyze syllabus for '{custom_name}': {custom_syllabus}
-                        Respond ONLY in raw JSON format with no markdown wrappers:
-                        {{
-                            "difficulty": <number 1 to 5>,
-                            "recommended_weekly_hours": <number>,
-                            "reasoning": "<short 1 sentence explanation>"
-                        }}
-                        """
+                        prompt = f"Analyze syllabus for '{custom_name}': {custom_syllabus}\nRespond strictly in raw JSON: {{\"difficulty\": <1-5>, \"recommended_weekly_hours\": <float>, \"reasoning\": \"<text>\"}}"
                         res = model.generate_content(prompt)
                         clean_text = res.text.replace("```json", "").replace("```", "").strip()
                         ai_data = json.loads(clean_text)
                         
                         st.session_state.user_schedule.append({
-                            "course": sanitize_string(custom_name),
+                            "course": custom_name,
                             "level": "Custom",
                             "difficulty": max(1, min(5, int(ai_data.get("difficulty", 3)))),
-                            "hours": int(ai_data.get("recommended_weekly_hours", 4)),
-                            "reasoning": sanitize_string(ai_data.get("reasoning", "Custom course."))
+                            "hours": float(ai_data.get("recommended_weekly_hours", 4.0)),
+                            "reasoning": str(ai_data.get("reasoning", "Custom syllabus parsed by AI."))
                         })
                         save_user_data()
-                        st.toast(f"Added {custom_name}!", icon="✅")
+                        st.success(f"Added {custom_name}!")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error analyzing syllabus: {e}")
+                        st.error(f"Error parsing syllabus: {e}")
 
     # Active Course Roster Display
     if st.session_state.user_schedule:
-        st.subheader("Current Active Roster")
+        st.subheader("Your Active Course Roster")
         for c in st.session_state.user_schedule:
-            diff_badge = "🔥" if c["difficulty"] == 5 else "⭐"
-            with st.expander(f"{diff_badge} [{c['level']}] {c['course']} — Difficulty: {c['difficulty']}/5"):
-                st.write(f"**Baseline Study Share:** ~{c['hours']} hrs/week")
-                st.write(f"**AI/Preset Reasoning:** {c['reasoning']}")
+            st.info(f"**[{c['level']}] {c['course']}** — Difficulty: `{c['difficulty']}/5` | Share: `~{c['hours']} hrs/week`\n\n_{c['reasoning']}_")
 
 # -------------------------------------------------------------------
-# TAB 2: DAILY TIME ALLOCATOR & DELIVERABLES
+# TAB 2: DAILY TIME ALLOCATOR
 # -------------------------------------------------------------------
 with tabs[1]:
-    st.header("Daily Time Allocator & Deliverables")
+    st.header("Daily Allocator & Specific Task Deliverables")
     
     if not st.session_state.user_schedule:
-        st.warning("⚠️ No courses active. Please select courses in Tab 1 first.")
+        st.warning("⚠️ Please select courses in Tab 1 to generate allocations.")
     else:
-        st.subheader("Target Available Self-Study Time Today")
-        col1, col2 = st.columns(2)
-        with col1:
-            study_hours = st.number_input("Hours", min_value=0, max_value=16, value=3, step=1, key="alloc_h")
-        with col2:
-            study_mins = st.number_input("Minutes", min_value=0, max_value=55, value=30, step=5, key="alloc_m")
+        st.subheader("Target Available Self-Study Window")
+        c1, c2 = st.columns(2)
+        with c1:
+            alloc_h = st.number_input("Hours", min_value=0, max_value=16, value=4, step=1)
+        with c2:
+            alloc_m = st.number_input("Minutes", min_value=0, max_value=55, value=0, step=5)
             
-        total_study_minutes_today = (study_hours * 60) + study_mins
+        total_minutes = (alloc_h * 60) + alloc_m
         total_difficulty = sum(c["difficulty"] for c in st.session_state.user_schedule) or 1
 
         st.divider()
-        st.subheader(f"Weighted Schedule Allocation ({format_hours_and_mins(total_study_minutes_today)} Total)")
+        st.subheader(f"Weighted Breakdown ({format_hours_and_mins(total_minutes)} Total)")
         
-        # Calculate Weighted Time Allocation
         for c in st.session_state.user_schedule:
-            allocated_minutes = (c["difficulty"] / total_difficulty) * total_study_minutes_today
-            formatted_time = format_hours_and_mins(allocated_minutes)
+            allocated_mins = (c["difficulty"] / total_difficulty) * total_minutes
+            st.markdown(f"#### • **[{c['level']}] {c['course']}** → `{format_hours_and_mins(allocated_mins)}`")
             
-            st.markdown(f"#### • **[{c['level']}] {c['course']}** (Diff: {c['difficulty']}/5) → `{formatted_time}`")
-            
-            # Deliverable Binding
+            # Task Deliverables binding
             deliv_key = f"deliv_{c['course']}"
-            current_deliv = st.session_state.deliverables.get(c['course'], "")
-            new_deliv = st.text_input(
-                f"Today's specific deliverable for {c['course']}:", 
-                value=current_deliv, 
-                placeholder="e.g., Read Chapter 4 and solve problems 1-10",
-                key=deliv_key
-            )
-            if new_deliv != current_deliv:
-                st.session_state.deliverables[c['course']] = sanitize_string(new_deliv)
+            current_val = st.session_state.deliverables.get(c['course'], "")
+            new_val = st.text_input(f"Today's specific goal for {c['course']}:", value=current_val, key=deliv_key)
+            if new_val != current_val:
+                st.session_state.deliverables[c['course']] = new_val
                 save_user_data()
 
 # -------------------------------------------------------------------
 # TAB 3: PROJECT ENGINE
 # -------------------------------------------------------------------
 with tabs[2]:
-    st.header("🚀 Project Execution Engine")
-    st.write("Track deadlines and let the app break down required daily focus time.")
-
-    with st.form("add_project_form", clear_on_submit=True):
-        p_name = st.text_input("Project / Assignment Title", max_chars=60)
-        p_hours = st.number_input("Estimated Total Hours Needed", min_value=0.5, max_value=100.0, value=5.0, step=0.5)
-        p_deadline = st.date_input("Due Date", min_value=datetime.date.today())
+    st.header("🚀 Project & Assignment Engine")
+    
+    with st.form("project_form", clear_on_submit=True):
+        p_title = st.text_input("Project Title")
+        p_hrs = st.number_input("Total Estimated Hours Required", min_value=0.5, max_value=100.0, value=6.0, step=0.5)
+        p_due = st.date_input("Due Date", min_value=datetime.date.today())
         
         if st.form_submit_button("Add Project"):
-            if p_name:
+            if p_title:
                 st.session_state.projects.append({
                     "id": str(uuid.uuid4()),
-                    "title": sanitize_string(p_name),
-                    "total_hours": float(p_hours),
-                    "deadline": str(p_deadline)
+                    "title": p_title,
+                    "total_hours": float(p_hrs),
+                    "deadline": str(p_due)
                 })
                 save_user_data()
-                st.toast(f"Project '{p_name}' added!", icon="🚀")
+                st.success(f"Project '{p_title}' added!")
                 st.rerun()
 
     if st.session_state.projects:
-        st.subheader("Active Projects Breakdown")
-        remaining_projects = []
-        
+        st.subheader("Active Projects Workload Breakdown")
+        active_projects = []
         for p in st.session_state.projects:
             due_date = datetime.datetime.strptime(p["deadline"], "%Y-%m-%d").date()
-            days_remaining = (due_date - datetime.date.today()).days
+            days_left = max(1, (due_date - datetime.date.today()).days)
+            daily_req_mins = (p["total_hours"] * 60) / days_left
             
-            col_info, col_action = st.columns([3, 1])
+            col_info, col_del = st.columns([3, 1])
             with col_info:
-                if days_remaining < 0:
-                    st.error(f"⚠️ **{p['title']}** (OVERDUE by {abs(days_remaining)} days!)")
-                elif days_remaining == 0:
-                    st.warning(f"🚨 **{p['title']}** (DUE TODAY! — Total Work: {p['total_hours']} hrs)")
-                else:
-                    days_rem_clamped = max(1, days_remaining)
-                    daily_needed_mins = (p["total_hours"] * 60) / days_rem_clamped
-                    st.write(f"**{p['title']}** | Due in `{days_remaining} days` ({p['deadline']})")
-                    st.markdown(f"👉 **Required Daily Work:** `{format_hours_and_mins(daily_needed_mins)}` / day")
-            
-            with col_action:
-                if st.button("Complete / Clear", key=f"del_{p['id']}"):
+                st.write(f"**{p['title']}** | Due: `{p['deadline']}` ({days_left} days left)")
+                st.markdown(f"👉 **Required Daily Work:** `{format_hours_and_mins(daily_req_mins)}` / day")
+            with col_del:
+                if st.button("Complete / Clear", key=f"p_del_{p['id']}"):
                     st.session_state.xp += 50
                     st.toast("Project Completed! +50 XP", icon="⭐")
                     continue
-            
-            remaining_projects.append(p)
+            active_projects.append(p)
             st.divider()
 
-        if len(remaining_projects) != len(st.session_state.projects):
-            st.session_state.projects = remaining_projects
+        if len(active_projects) != len(st.session_state.projects):
+            st.session_state.projects = active_projects
             save_user_data()
             st.rerun()
 
 # -------------------------------------------------------------------
-# TAB 4: FOCUS TIMER & DISTRACTION TRAP
+# TAB 4: FOCUS TIMER & DISTRACTION LOG
 # -------------------------------------------------------------------
 with tabs[3]:
     st.header("⏱️ Active Focus Session")
     
-    col_timer, col_trap = st.columns([2, 1])
-    
-    with col_timer:
-        st.subheader("Pomodoro Sprint Engine")
-        course_list = [c["course"] for c in st.session_state.user_schedule] if st.session_state.user_schedule else ["General Focus"]
-        timer_course = st.selectbox("Select Target Focus Subject", course_list)
-        timer_minutes = st.number_input("Sprint Duration (Mins)", min_value=1, max_value=120, value=25, step=5)
+    c_timer, c_trap = st.columns([2, 1])
+    with c_timer:
+        st.subheader("Pomodoro Sprint")
+        courses_available = [c["course"] for c in st.session_state.user_schedule] if st.session_state.user_schedule else ["General Focus"]
+        target_course = st.selectbox("Target Course", courses_available)
+        sprint_mins = st.number_input("Sprint Length (Minutes)", min_value=1, max_value=120, value=st.session_state.settings.get("pomo_work", 25))
         
-        if st.button("▶️ Launch Focus Sprint"):
-            timer_ph = st.empty()
-            total_secs = int(timer_minutes * 60)
-            
-            # Non-blocking timestamp based timer loop
-            end_time = time.time() + total_secs
+        if st.button("▶️ Start Focus Sprint"):
+            ph = st.empty()
+            end_time = time.time() + (sprint_mins * 60)
             while time.time() < end_time:
-                rem_secs = int(end_time - time.time())
-                mins, secs = divmod(rem_secs, 60)
-                timer_ph.markdown(f"# ⏳ `{mins:02d}:{secs:02d}`")
-                timer_ph.caption(f"Currently Focusing on: **{timer_course}**")
+                remaining = int(end_time - time.time())
+                mins, secs = divmod(remaining, 60)
+                ph.markdown(f"# ⏳ `{mins:02d}:{secs:02d}`")
+                ph.caption(f"Focusing on: **{target_course}**")
                 time.sleep(1)
-            
-            timer_ph.success("🎉 Sprint Finished! Great job staying focused.")
-            st.session_state.xp += 10
+            ph.success("🎉 Sprint Complete! Take a break.")
+            st.session_state.xp += 15
             save_user_data()
-            st.toast("Earned +10 XP for completing sprint!", icon="⭐")
+            st.toast("Earned +15 XP!", icon="⭐")
 
-    with col_trap:
+    with c_trap:
         st.subheader("🧠 Distraction Trap")
-        st.caption("Got a distracting urge? Log it here to clear your working memory.")
-        
-        distraction_input = st.text_input("Log Distraction:", key="dist_in")
+        d_thought = st.text_input("Log Distraction", key="dist_thought_input")
         if st.button("Trap Thought"):
-            if distraction_input:
+            if d_thought:
                 st.session_state.distractions.append({
                     "time": datetime.datetime.now().strftime("%H:%M"),
-                    "thought": sanitize_string(distraction_input)
+                    "thought": d_thought
                 })
-                # Cap distraction array length
-                st.session_state.distractions = st.session_state.distractions[-50:]
                 save_user_data()
                 st.toast("Thought trapped!", icon="🧠")
                 st.rerun()
 
         if st.session_state.distractions:
             st.divider()
-            st.write("Recent Trapped Thoughts:")
             for d in reversed(st.session_state.distractions[-5:]):
                 st.caption(f"• **[{d['time']}]** {d['thought']}")
 
 # -------------------------------------------------------------------
-# TAB 5: VISUAL TIMELINE & GUARDRAILS
+# TAB 5: TIMELINE & HEALTH GUARDRAILS
 # -------------------------------------------------------------------
 with tabs[4]:
-    st.header("📊 Daily Visual Timeline & Health Guardrails")
+    st.header("📊 Daily Schedule Visualizer & Guardrails")
 
-    col_s, col_sch = st.columns(2)
-    with col_s:
-        sleep_h = st.number_input("Target Sleep Hours", min_value=4.0, max_value=12.0, value=8.0, step=0.5, key="guard_sleep")
-    with col_sch:
-        school_h = st.number_input("School / Class Hours", min_value=0.0, max_value=12.0, value=6.0, step=0.5, key="guard_school")
+    c_s, c_sch = st.columns(2)
+    with c_s:
+        sleep_hours = st.number_input("Sleep Target (Hours)", min_value=4.0, max_value=12.0, value=8.0, step=0.5)
+    with c_sch:
+        school_hours = st.number_input("In-Class / School Target (Hours)", min_value=0.0, max_value=12.0, value=6.0, step=0.5)
 
-    calc_study_h = total_study_minutes_today / 60.0 if 'total_study_minutes_today' in locals() else 3.5
-    free_h = max(0.0, 24.0 - sleep_h - school_h - calc_study_h)
+    study_hours = total_minutes / 60.0 if 'total_minutes' in locals() else 4.0
+    free_hours = max(0.0, 24.0 - sleep_hours - school_hours - study_hours)
 
-    # Render Visual Plotly Chart
     timeline_df = pd.DataFrame([
-        {"Category": "Sleep Window", "Hours": sleep_h},
-        {"Category": "School / Class", "Hours": school_h},
-        {"Category": "Planned Self-Study", "Hours": calc_study_h},
-        {"Category": "Free / Personal Time", "Hours": free_h}
+        {"Category": "Sleep", "Hours": sleep_hours},
+        {"Category": "School / Class", "Hours": school_hours},
+        {"Category": "Self-Study", "Hours": study_hours},
+        {"Category": "Free Time", "Hours": free_hours}
     ])
-    
-    # Filter out 0-hour categories for clean rendering
     timeline_df = timeline_df[timeline_df["Hours"] > 0]
 
     fig = px.bar(
@@ -446,26 +438,12 @@ with tabs[4]:
         orientation='h', 
         color="Category",
         text="Hours",
-        color_discrete_map={
-            "Sleep Window": "#2b5c8f", 
-            "School / Class": "#e67e22", 
-            "Planned Self-Study": "#27ae60", 
-            "Free / Personal Time": "#8e44ad"
-        }
+        color_discrete_sequence=px.colors.qualitative.Bold
     )
-    fig.update_layout(
-        height=280, 
-        showlegend=False, 
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(range=[0, 24], title="Hours in Day (24h Total)")
-    )
+    fig.update_layout(height=280, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig, use_container_width=True)
 
-    # Health Guardrail Alerts
-    total_committed = sleep_h + school_h + calc_study_h
-    if total_committed > 24.0:
-        over_by = total_committed - 24.0
-        st.error(f"🚨 **Overcommitment Alert:** Your planned day exceeds 24 hours by `{format_hours_and_mins(over_by * 60)}`! Reduce study or school targets to protect your sleep.")
+    if sleep_hours + school_hours + study_hours > 24.0:
+        st.error("🚨 Overcommitment Warning: Total commitments exceed 24 hours!")
     else:
-        st.success(f"✅ **Healthy Day Balance:** You have `{format_hours_and_mins(free_h * 60)}` of unallocated free time remaining today.")
+        st.success(f"✅ Schedule Balanced: `{format_hours_and_mins(free_hours * 60)}` remaining for relaxation today.")
