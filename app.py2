@@ -1,0 +1,124 @@
+import streamlit as st
+import json
+import os
+from course_builder import generate_full_course
+
+st.set_page_config(page_title="AI Academy LMS Engine", page_icon="🎓", layout="wide")
+
+DATA_FILE = "user_data.json"
+
+# Load / Save Data Persistent Storage
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"created_courses": [], "grades": {}}
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+if "db" not in st.session_state:
+    st.session_state.db = load_data()
+
+# Sidebar Configuration
+st.sidebar.title("🎓 AI Academy LMS")
+api_key = st.sidebar.text_input("Gemini API Key", type="password")
+
+# --- BROWSER-STYLE TAB SYSTEM ---
+# Dynamic Tab Navigation: Hub + Each Created Course
+course_titles = [c["course_title"] for c in st.session_state.db["created_courses"]]
+tab_labels = ["➕ Course Creator & Dashboard"] + [f"📖 {title}" for title in course_titles]
+
+active_tabs = st.tabs(tab_labels)
+
+# -------------------------------------------------------------------
+# TAB 1: COURSE CREATOR & ENGINE DASHBOARD
+# -------------------------------------------------------------------
+with active_tabs[0]:
+    st.header("🛠️ AI Course Generation Engine")
+    st.write("Enter any subject and timeframe. The engine will build a tailored curriculum complete with assignments, quizzes, essays, and projects.")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        subject_input = st.text_input("What do you want to learn?", placeholder="e.g., Renaissance Art History, Quantum Computing, Microeconomics")
+    with col2:
+        duration_input = st.selectbox("Timeframe / Pace", ["1 Week Crash Course", "1 Month Intensive", "3 Months Semester"])
+        
+    if st.button("⚡ Generate Complete Course", type="primary"):
+        if not api_key:
+            st.error("Please enter a valid Gemini API Key in the sidebar.")
+        elif not subject_input:
+            st.warning("Please specify a course subject.")
+        else:
+            with st.spinner("Building custom course curriculum, assignments, and quizzes..."):
+                try:
+                    new_course = generate_full_course(subject_input, duration_input, api_key)
+                    st.session_state.db["created_courses"].append(new_course)
+                    save_data(st.session_state.db)
+                    st.success(f"Successfully generated '{new_course['course_title']}'!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to generate course: {e}")
+
+    st.divider()
+    st.subheader("📚 Active Enrolled Courses")
+    if not st.session_state.db["created_courses"]:
+        st.info("No courses created yet. Use the engine above to generate your first course!")
+    else:
+        for idx, course in enumerate(st.session_state.db["created_courses"]):
+            st.markdown(f"**{idx + 1}. {course['course_title']}** ({course['duration']}) — {len(course['weeks'])} Modules")
+
+# -------------------------------------------------------------------
+# DYNAMIC TABS: COURSE WORKSPACES (GENERATED PER COURSE)
+# -------------------------------------------------------------------
+for i, course in enumerate(st.session_state.db["created_courses"]):
+    with active_tabs[i + 1]:
+        st.title(f"📖 {course['course_title']}")
+        st.caption(f"**Pace:** {course['duration']} | **Overview:** {course['description']}")
+        
+        # Course Module Selection
+        week_options = [f"Week {w['week_number']}: {w['topic']}" for w in course["weeks"]]
+        selected_week_str = st.selectbox(f"Select Module / Syllabus Block", week_options, key=f"select_{i}")
+        selected_week_num = int(selected_week_str.split(":")[0].replace("Week ", ""))
+        week_data = next(w for w in course["weeks"] if w["week_number"] == selected_week_num)
+        
+        st.divider()
+        
+        # Course Workstation Accordions
+        with st.expander("📝 Lessons & Core Concepts", expanded=True):
+            for lesson in week_data.get("lessons", []):
+                st.markdown(f"• {lesson}")
+                
+        with st.expander("✏️ Weekly Assignment"):
+            asgn = week_data.get("assignment", {})
+            st.subheader(asgn.get("title", "Assignment"))
+            st.write(asgn.get("instructions", ""))
+            st.text_area("Submit Assignment Workspace", key=f"asgn_sub_{i}_{selected_week_num}")
+            if st.button("Submit Assignment", key=f"btn_asgn_{i}_{selected_week_num}"):
+                st.toast("Assignment submitted successfully!", icon="✅")
+
+        with st.expander("🧪 Knowledge Assessment (Quiz)"):
+            quiz = week_data.get("quiz", {})
+            st.subheader(quiz.get("title", "Module Quiz"))
+            for q_idx, q in enumerate(quiz.get("questions", [])):
+                st.markdown(f"**Q{q_idx + 1}: {q['question']}**")
+                user_ans = st.radio("Options:", q["options"], key=f"q_{i}_{selected_week_num}_{q_idx}")
+                if st.button(f"Check Question {q_idx + 1}", key=f"chk_{i}_{selected_week_num}_{q_idx}"):
+                    if user_ans == q["answer"]:
+                        st.success("Correct!")
+                    else:
+                        st.error(f"Incorrect. Correct answer: {q['answer']}")
+
+        with st.expander("📄 Essay Prompt"):
+            st.write(week_data.get("essay_prompt", "No essay assigned for this module."))
+            st.text_area("Write Essay Here...", height=200, key=f"essay_sub_{i}_{selected_week_num}")
+            if st.button("Submit Essay for AI Grading", key=f"btn_essay_{i}_{selected_week_num}"):
+                st.toast("Essay sent for review!", icon="📄")
+
+        with st.expander("🎨 Hands-On Project Deliverable"):
+            st.write(week_data.get("project", "No project assigned for this module."))
+            st.file_uploader("Upload Project Files / Portfolio Work", key=f"proj_up_{i}_{selected_week_num}")
